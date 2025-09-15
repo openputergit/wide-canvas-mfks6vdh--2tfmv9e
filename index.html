@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threat Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-purple: #9d00ff;
+            --dark-bg: #1a1a1a;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--dark-bg);
+            color: #fff;
+        }
+
+        .neo-box {
+            background: #242424;
+            border-radius: 20px;
+            box-shadow: 8px 8px 15px rgba(0,0,0,0.3),
+                        -8px -8px 15px rgba(255,255,255,0.05);
+        }
+
+        .neo-button {
+            background: linear-gradient(145deg, #1e1e1e, #242424);
+            box-shadow: 5px 5px 10px rgba(0,0,0,0.3),
+                        -5px -5px 10px rgba(255,255,255,0.05);
+            transition: all 0.3s;
+        }
+
+        .neo-button:hover {
+            box-shadow: inset 5px 5px 10px rgba(0,0,0,0.3),
+                        inset -5px -5px 10px rgba(255,255,255,0.05);
+        }
+
+        .neon-text {
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        .loader {
+            border: 3px solid #242424;
+            border-radius: 50%;
+            border-top: 3px solid var(--neon-blue);
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="neo-box w-64 p-6 m-4 flex flex-col">
+            <h1 class="text-2xl font-bold mb-8 neon-text">Threat Dashboard</h1>
+            <nav class="space-y-4">
+                <a href="#" class="neo-button block p-3 rounded-lg text-white hover:text-[var(--neon-blue)]">
+                    <i class="bi bi-speedometer2 mr-2"></i> Dashboard
+                </a>
+                <a href="#" class="neo-button block p-3 rounded-lg text-white hover:text-[var(--neon-blue)]">
+                    <i class="bi bi-shield-exclamation mr-2"></i> Vulnerabilities
+                </a>
+                <a href="#" class="neo-button block p-3 rounded-lg text-white hover:text-[var(--neon-blue)]">
+                    <i class="bi bi-lightning mr-2"></i> Threat Feed
+                </a>
+                <a href="#" class="neo-button block p-3 rounded-lg text-white hover:text-[var(--neon-blue)]">
+                    <i class="bi bi-file-earmark-text mr-2"></i> Reports
+                </a>
+                <a href="#" class="neo-button block p-3 rounded-lg text-white hover:text-[var(--neon-blue)]">
+                    <i class="bi bi-gear mr-2"></i> Settings
+                </a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-4 overflow-y-auto">
+            <!-- Top Bar -->
+            <div class="neo-box p-4 mb-6 flex justify-between items-center">
+                <div class="flex items-center">
+                    <input type="text" placeholder="Search vulnerabilities..." class="neo-box bg-[#242424] text-white p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--neon-blue)]">
+                    <select class="neo-box bg-[#242424] text-white p-2 ml-4 rounded-lg focus:outline-none">
+                        <option value="">All Severities</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                <div class="flex items-center">
+                    <span class="mr-4">Admin User</span>
+                    <button class="neo-button px-4 py-2 rounded-lg text-[var(--neon-blue)]">Logout</button>
+                </div>
+            </div>
+
+            <!-- Dashboard Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="neo-box p-6">
+                    <h3 class="text-lg font-semibold mb-4">Severity Distribution</h3>
+                    <canvas id="severityChart"></canvas>
+                </div>
+                <div class="neo-box p-6">
+                    <h3 class="text-lg font-semibold mb-4">Vulnerability Trend</h3>
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Vulnerability Table -->
+            <div class="neo-box p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">Active Vulnerabilities</h2>
+                    <button class="neo-button px-6 py-2 rounded-lg text-[var(--neon-blue)]" id="simulateScan">
+                        Simulate Scan
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left border-b border-gray-700">
+                                <th class="p-3">Name</th>
+                                <th class="p-3">Severity</th>
+                                <th class="p-3">CVSS Score</th>
+                                <th class="p-3">Asset</th>
+                                <th class="p-3">Priority Score</th>
+                                <th class="p-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vulnerabilityTable">
+                            <!-- Table rows will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Template -->
+    <div id="vulnerabilityModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="neo-box w-full max-w-2xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Vulnerability Details</h3>
+                <button class="text-gray-400 hover:text-white" onclick="closeModal()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div id="modalContent">
+                <!-- Modal content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize charts
+        const severityCtx = document.getElementById('severityChart').getContext('2d');
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+
+        const severityChart = new Chart(severityCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Critical', 'High', 'Medium', 'Low'],
+                datasets: [{
+                    data: [4, 8, 15, 12],
+                    backgroundColor: ['#ff0044', '#ff3300', '#ff9900', '#00cc44']
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#fff'
+                        }
+                    }
+                }
+            }
+        });
+
+        const trendChart = new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Vulnerabilities',
+                    data: [12, 19, 15, 25, 22, 30],
+                    borderColor: 'var(--neon-blue)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#fff'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: { color: '#fff' }
+                    },
+                    x: {
+                        ticks: { color: '#fff' }
+                    }
+                }
+            }
+        });
+
+        // Simulate vulnerability data
+        let vulnerabilities = [];
+
+        function generateMockVulnerabilities() {
+            return [
+                {
+                    id: 'CVE-2023-001',
+                    name: 'SQL Injection Vulnerability',
+                    severity: 'Critical',
+                    cvssScore: 9.8,
+                    asset: 'Production Database',
+                    priorityScore: 95
+                },
+                {
+                    id: 'CVE-2023-002',
+                    name: 'Cross-Site Scripting',
+                    severity: 'High',
+                    cvssScore: 7.5,
+                    asset: 'Web Frontend',
+                    priorityScore: 85
+                },
+                // Add more mock data as needed
+            ];
+        }
+
+        function updateVulnerabilityTable() {
+            const tableBody = document.getElementById('vulnerabilityTable');
+            tableBody.innerHTML = '';
+
+            vulnerabilities.forEach(vuln => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-700';
+                row.innerHTML = `
+                    <td class="p-3">${vuln.name}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-1 rounded-full text-sm ${getSeverityClass(vuln.severity)}">
+                            ${vuln.severity}
+                        </span>
+                    </td>
+                    <td class="p-3">${vuln.cvssScore}</td>
+                    <td class="p-3">${vuln.asset}</td>
+                    <td class="p-3">${vuln.priorityScore}</td>
+                    <td class="p-3">
+                        <button onclick="showVulnerabilityDetails('${vuln.id}')" 
+                                class="neo-button px-3 py-1 rounded-lg text-[var(--neon-blue)] mr-2">
+                            View
+                        </button>
+                        <button onclick="resolveVulnerability('${vuln.id}')"
+                                class="neo-button px-3 py-1 rounded-lg text-green-400">
+                            Resolve
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function getSeverityClass(severity) {
+            const classes = {
+                'Critical': 'bg-red-900 text-red-200',
+                'High': 'bg-orange-900 text-orange-200',
+                'Medium': 'bg-yellow-900 text-yellow-200',
+                'Low': 'bg-green-900 text-green-200'
+            };
+            return classes[severity] || '';
+        }
+
+        function showVulnerabilityDetails(id) {
+            const vuln = vulnerabilities.find(v => v.id === id);
+            const modal = document.getElementById('vulnerabilityModal');
+            const content = document.getElementById('modalContent');
+
+            content.innerHTML = `
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="text-gray-400">Vulnerability ID</h4>
+                        <p>${vuln.id}</p>
+                    </div>
+                    <div>
+                        <h4 class="text-gray-400">Name</h4>
+                        <p>${vuln.name}</p>
+                    </div>
+                    <div>
+                        <h4 class="text-gray-400">Severity</h4>
+                        <p class="inline-block ${getSeverityClass(vuln.severity)} px-2 py-1 rounded-full">
+                            ${vuln.severity}
+                        </p>
+                    </div>
+                    <div>
+                        <h4 class="text-gray-400">CVSS Score</h4>
+                        <p>${vuln.cvssScore}</p>
+                    </div>
+                    <div>
+                        <h4 class="text-gray-400">Affected Asset</h4>
+                        <p>${vuln.asset}</p>
+                    </div>
+                    <div>
+                        <h4 class="text-gray-400">Priority Score</h4>
+                        <p>${vuln.priorityScore}</p>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('vulnerabilityModal').classList.add('hidden');
+        }
+
+        function resolveVulnerability(id) {
+            vulnerabilities = vulnerabilities.filter(v => v.id !== id);
+            updateVulnerabilityTable();
+        }
+
+        // Initialize
+        document.getElementById('simulateScan').addEventListener('click', () => {
+            vulnerabilities = generateMockVulnerabilities();
+            updateVulnerabilityTable();
+        });
+
+        // Initial load
+        vulnerabilities = generateMockVulnerabilities();
+        updateVulnerabilityTable();
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('vulnerabilityModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
